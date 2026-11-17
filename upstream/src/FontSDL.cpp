@@ -47,6 +47,7 @@ namespace cbe
   void FontSDL::render(const std::string &text, int x, int y,
                        FontAlignment alignment)
   {
+    if (!font || text.empty()) return;
     SDL_Rect rect;
     rect.x = x;
     rect.y = y;
@@ -91,6 +92,10 @@ namespace cbe
 
     SDL_Texture *textTexture;
     textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (!textTexture) {
+      SDL_FreeSurface(textSurface);
+      return;
+    }
     SDL_SetTextureBlendMode(textTexture, SDL_BLENDMODE_BLEND);
 
     SDL_RenderCopy(renderer, textTexture, &orig, &rect);
@@ -114,12 +119,14 @@ namespace cbe
 
   void FontSDL::getSize(const std::string &text, int *w, int *h)
   {
-    TTF_SizeUTF8(font, text.c_str(), w, h);
+    if (w) *w = 0;
+    if (h) *h = 0;
+    if (font) TTF_SizeUTF8(font, text.c_str(), w, h);
   }
 
   int FontSDL::getHeight()
   {
-    return TTF_FontHeight(font);
+    return font ? TTF_FontHeight(font) : 0;
   }
 
 };

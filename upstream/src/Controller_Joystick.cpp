@@ -26,6 +26,7 @@
 
 #include <SDL2/SDL.h>
 #include <cstdlib>
+#include <algorithm>
 
 Controller_Joystick::Controller_Joystick(int joystick_nr) : Controller()
 {
@@ -44,10 +45,63 @@ Controller_Joystick::Controller_Joystick(int joystick_nr) : Controller()
     {
         joystick = SDL_JoystickOpen(joystick_nr);
     }
+#ifdef CLANBOMBER_PS5
+    SDL_Joystick *device = gamecontroller ? SDL_GameControllerGetJoystick(gamecontroller) : joystick;
+    if (device) {
+        instance_id = SDL_JoystickInstanceID(device);
+        controllers.push_back(this);
+    }
+#endif
 }
+
+#ifdef CLANBOMBER_PS5
+std::vector<Controller_Joystick *> Controller_Joystick::controllers;
+
+void Controller_Joystick::handle_event(const SDL_Event &event, bool paused)
+{
+    for (auto *controller : controllers) {
+        int button = -1;
+        bool down = false;
+        if (controller->gamecontroller &&
+            (event.type == SDL_CONTROLLERBUTTONDOWN || event.type == SDL_CONTROLLERBUTTONUP) &&
+            event.cbutton.which == controller->instance_id) {
+            if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A) button = 0;
+            if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B) button = 1;
+            down = event.type == SDL_CONTROLLERBUTTONDOWN;
+        } else if (controller->joystick &&
+                   (event.type == SDL_JOYBUTTONDOWN || event.type == SDL_JOYBUTTONUP) &&
+                   event.jbutton.which == controller->instance_id && event.jbutton.button < 2) {
+            button = event.jbutton.button;
+            down = event.type == SDL_JOYBUTTONDOWN;
+        }
+        if (button < 0) continue;
+        const unsigned bit = 1u << button;
+        if (down) controller->bomb_buttons_held |= bit;
+        else controller->bomb_buttons_held &= ~bit;
+        if (!down && controller->bomb_buttons_held == 0)
+            controller->wait_for_bomb_release = false;
+        if (down && !paused && !controller->wait_for_bomb_release)
+            controller->bomb_press_pending = true;
+    }
+}
+
+extern SDL_JoystickID ps5_menu_pad_id();
+
+void Controller_Joystick::pause_transition(bool menu_button)
+{
+    for (auto *controller : controllers) {
+        controller->bomb_press_pending = false;
+        controller->wait_for_bomb_release = controller->bomb_buttons_held != 0 ||
+            (menu_button && controller->instance_id == ps5_menu_pad_id());
+    }
+}
+#endif
 
 Controller_Joystick::~Controller_Joystick()
 {
+#ifdef CLANBOMBER_PS5
+    controllers.erase(std::remove(controllers.begin(), controllers.end(), this), controllers.end());
+#endif
     if (gamecontroller != NULL)
     {
         SDL_GameControllerClose(gamecontroller);
@@ -63,7 +117,12 @@ Controller_Joystick::~Controller_Joystick()
 void Controller_Joystick::update()
 {
     const Sint16 tolerance = 12000;
-    if (!active) return;
+    if (!active) {
+#ifdef CLANBOMBER_PS5
+        bomb_press_pending = false;
+#endif
+        return;
+    }
 
     bool b_left = false, b_right = false, b_up = false, b_down = false;
     bool b_bomb = false;
@@ -153,6 +212,16 @@ void Controller_Joystick::update()
         put_bomb = false;
         bomb_button_down = true;
     }
+#ifdef CLANBOMBER_PS5
+    if (wait_for_bomb_release) {
+        put_bomb = false;
+        bomb_press_pending = false;
+        if (!b_bomb) wait_for_bomb_release = false;
+    } else {
+        put_bomb = bomb_press_pending || put_bomb;
+        bomb_press_pending = false;
+    }
+#endif
 }
 
 void Controller_Joystick::reset()
@@ -164,6 +233,9 @@ void Controller_Joystick::reset()
 
     put_bomb = false;
     bomb_button_down = true;
+#ifdef CLANBOMBER_PS5
+    bomb_press_pending = false;
+#endif
 
     reverse = false;
 }

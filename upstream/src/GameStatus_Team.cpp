@@ -21,6 +21,10 @@
  *
  */
 
+#ifdef CLANBOMBER_PS5
+#include <SDL2/SDL.h>
+extern SDL_Renderer *renderer;
+#endif
 #include "GameStatus_Team.h"
 
 #include <cmath>
@@ -143,6 +147,10 @@ void GameStatus_Team::draw()
 {
     std::string temp_string;
     game_status_team->team_count[0] = game_status_team->team_count[1] = game_status_team->team_count[2] = game_status_team->team_count[3] = 0;
+#ifdef CLANBOMBER_PS5
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+#endif
     Resources::Gamestatus_background()->blit(0, 0);
 
 #if defined(CLANBOMBER_PS5)

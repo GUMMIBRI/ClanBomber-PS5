@@ -24,6 +24,7 @@
 #include "AssetPath.h"
 #include "ClanBomber.h"
 
+
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
@@ -45,6 +46,9 @@
 #include "MapTile.h"
 #include "Bomber.h"
 #include "MapSelector.h"
+#ifdef CLANBOMBER_PS5
+#include "Controller_Joystick.h"
+#endif
 #include "Bomb.h"
 #include "Utils.h"
 #include "UtilsGetHome.h"
@@ -148,7 +152,21 @@ int ClanBomberApplication::init_SDL() {
     ps5_start_menu_input();
 #endif
 
-	Uint32 fullscreen = (Config::get_fullscreen()) ? SDL_WINDOW_FULLSCREEN : 0;
+    int window_width = 800;
+    int window_height = 600;
+#ifdef CLANBOMBER_PS5
+    SDL_DisplayMode display_mode{};
+    if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
+        ps5_startup_log("desktop display mode", SDL_GetError());
+        return -1;
+    }
+    window_width = display_mode.w;
+    window_height = display_mode.h;
+    const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS;
+#else
+    const Uint32 fullscreen = Config::get_fullscreen() ? SDL_WINDOW_FULLSCREEN : 0;
+    const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | fullscreen;
+#endif
 	Uint32 renderMode = (Config::get_softwareRendering()) ? SDL_RENDERER_SOFTWARE : SDL_RENDERER_ACCELERATED;
 
 	if (Config::get_fullscreen()) SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -173,8 +191,7 @@ int ClanBomberApplication::init_SDL() {
 	gameWindow = SDL_CreateWindow(PACKAGE_STRING,
                           SDL_WINDOWPOS_UNDEFINED,
                           SDL_WINDOWPOS_UNDEFINED,
-                          800, 600,
-                          SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | fullscreen);
+                          window_width, window_height, window_flags);
 
 #ifdef CLANBOMBER_PS5
     if (gameWindow) ps5_startup_log("SDL_CreateWindow", "ok");
@@ -186,16 +203,64 @@ int ClanBomberApplication::init_SDL() {
 #ifdef CLANBOMBER_PS5
     ps5_startup_log("SDL_CreateRenderer", "begin");
 #endif
-	renderer = SDL_CreateRenderer(gameWindow, -1, renderMode);
 #ifdef CLANBOMBER_PS5
-    if (renderer) ps5_startup_log("SDL_CreateRenderer", "ok");
+    int renderer_index = -1;
+    for (int i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
+        SDL_RendererInfo driver{};
+        if (SDL_GetRenderDriverInfo(i, &driver) == 0 &&
+            (driver.flags & renderMode) == renderMode) {
+            renderer_index = i;
+            ps5_startup_log("requested renderer", driver.name);
+            break;
+        }
+    }
+    renderer = SDL_CreateRenderer(gameWindow, renderer_index, renderMode);
+#else
+    renderer = SDL_CreateRenderer(gameWindow, -1, renderMode);
+#endif
+#ifdef CLANBOMBER_PS5
+    if (!renderer) {
+        ps5_startup_log("desktop renderer failed; diagnostic fallback to 800x600", SDL_GetError());
+        if (SDL_SetWindowFullscreen(gameWindow, 0) == 0) {
+            SDL_SetWindowSize(gameWindow, 800, 600);
+            renderer = SDL_CreateRenderer(gameWindow, -1, renderMode);
+        }
+    }
     if (!renderer) {
         ps5_startup_log("SDL renderer creation", SDL_GetError());
         return -1;
     }
 #endif
 
-	SDL_RenderSetLogicalSize(renderer, 800, 600);
+#ifdef CLANBOMBER_PS5
+    int output_width = 0;
+    int output_height = 0;
+    if (SDL_GetRendererOutputSize(renderer, &output_width, &output_height) != 0 ||
+        output_width <= 0 || output_height <= 0 ||
+        SDL_RenderSetScale(renderer, output_width / 800.0f, output_height / 600.0f) != 0) {
+        ps5_startup_log("display setup failed", SDL_GetError());
+        return -1;
+    }
+    SDL_RendererInfo renderer_info{};
+    int actual_width = 0;
+    int actual_height = 0;
+    SDL_GetWindowSize(gameWindow, &actual_width, &actual_height);
+    SDL_DisplayMode present_mode{};
+    const bool have_present_mode = SDL_GetCurrentDisplayMode(0, &present_mode) == 0;
+    char detail[192];
+    if (SDL_GetRendererInfo(renderer, &renderer_info) == 0) {
+        std::snprintf(detail, sizeof(detail), "%s flags=0x%x",
+                      renderer_info.name, renderer_info.flags);
+        ps5_startup_log("renderer backend", detail);
+    }
+    std::snprintf(detail, sizeof(detail), "window=%dx%d output=%dx%d present=%dx%d",
+                  actual_width, actual_height, output_width, output_height,
+                  have_present_mode ? present_mode.w : 0,
+                  have_present_mode ? present_mode.h : 0);
+    ps5_startup_log("display", detail);
+#else
+    SDL_RenderSetLogicalSize(renderer, 800, 600);
+#endif
 
    	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
@@ -289,6 +354,18 @@ int ClanBomberApplication::main() {
     ps5_startup_log("resources", "ok");
 #endif
 	Config::load();
+#ifdef CLANBOMBER_PS5
+    ps5_startup_log("match resources", "begin");
+    Resources::Game_putbomb();
+    Resources::Game_explode();
+    Resources::Game_bombs();
+    // Player Setup can select any stock skin, including slots unused at boot.
+    for (int skin = 0; skin < NR_BOMBERSKINS; ++skin)
+        Resources::Bombers(skin);
+    Resources::Game_maptiles();
+    Resources::Game_explosion();
+    ps5_startup_log("match resources", "preload finished");
+#endif
 #ifdef CLANBOMBER_PS5
     ps5_startup_log("intro", "begin");
 #endif
@@ -621,20 +698,29 @@ int ClanBomberApplication::main() {
             if (!Config::save()) ps5_startup_log("CPU difficulty", "config save failed");
             break;
 #endif
-		case LOCALGAME_START:
+		case LOCALGAME_START: {
 #ifdef CLANBOMBER_PS5
             ps5_startup_log("local match", "selected");
 #endif
 			menu->scroll_out();
 			if (Config::get_number_of_opponents() > 1) {
-				if (init_game()) {
-					run_game();
-					deinit_game();
-				}
+                int restart_map = -1;
+                while (init_game(restart_map)) {
+                    const MatchExit result = run_game();
+                    if (result == MatchExit::Restart) {
+                        const auto &levels = map->map_list;
+                        const auto current = std::find(levels.begin(), levels.end(), map->get_current_map());
+                        restart_map = current == levels.end() ? -1 : static_cast<int>(current - levels.begin());
+                    }
+                    deinit_game();
+                    if (result == MatchExit::Title) menu->return_to_title();
+                    if (result != MatchExit::Restart || restart_map < 0) break;
+                }
 			} else {
 				menu->scroll_in();
 			}
 			break;
+        }
 		default:
 			std::cout << result << std::endl;
 			break;
@@ -642,14 +728,22 @@ int ClanBomberApplication::main() {
 	}
 }
 
-void ClanBomberApplication::run_game() {
+ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
+    MatchExit result = MatchExit::Finished;
+#ifdef CLANBOMBER_PS5
+    bool confirm_pause_choice = false;
+    enum PauseChoice { Resume, RestartMatch, ReturnToTitle, ChoiceCount };
+    int pause_choice = Resume;
+    const char *choices[] = {_("Resume"), _("Restart Match"), _("Return to Title")};
+    bool pause_needs_draw = true;
+#endif
 #ifdef CLANBOMBER_PS5
     ps5_set_match_input(true);
     pause_game = false;
 #endif
 
-	if(play_music && !Resources::Music()->isPlaying())
-		Resources::Music()->playLoop();
+    cbe::Music *match_music = nullptr;
+    bool music_requested = false;
 
 	Timer::reset();
 
@@ -658,11 +752,58 @@ void ClanBomberApplication::run_game() {
 
 		Timer::time_elapsed(true);
 
-		SDL_RenderClear(renderer);
+#ifndef CLANBOMBER_PS5
+        SDL_RenderClear(renderer);
+#endif
 
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
+#ifdef CLANBOMBER_PS5
+            Controller_Joystick::handle_event(event, pause_game);
+            if (event.type == SDL_WINDOWEVENT &&
+                (event.window.event == SDL_WINDOWEVENT_EXPOSED ||
+                 event.window.event == SDL_WINDOWEVENT_RESTORED))
+                pause_needs_draw = true;
+#endif
 			if (event.type == SDL_KEYDOWN) {
+#ifdef CLANBOMBER_PS5
+                if (event.key.repeat) continue;
+                if (pause_game) {
+                    switch (event.key.keysym.scancode) {
+                    case SDL_SCANCODE_UP:
+                    case SDL_SCANCODE_DOWN:
+                        if (!confirm_pause_choice) {
+                            const int step = event.key.keysym.scancode == SDL_SCANCODE_UP ? -1 : 1;
+                            pause_choice = (pause_choice + step + ChoiceCount) % ChoiceCount;
+                            pause_needs_draw = true;
+                        }
+                        continue;
+                    case SDL_SCANCODE_BACKSPACE:
+                        if (confirm_pause_choice) pause_needs_draw = true;
+                        else {
+                            pause_game = false;
+                            Controller_Joystick::pause_transition(true);
+                        }
+                        confirm_pause_choice = false;
+                        continue;
+                    case SDL_SCANCODE_RETURN:
+                        if (confirm_pause_choice) {
+                            result = pause_choice == RestartMatch ? MatchExit::Restart : MatchExit::Title;
+                            escape = true;
+                        } else if (pause_choice != Resume) {
+                            confirm_pause_choice = true;
+                            pause_needs_draw = true;
+                        } else {
+                            pause_game = false;
+                            Controller_Joystick::pause_transition(true);
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                    if (escape) break;
+                }
+#endif
 				switch (event.key.keysym.scancode) {
 				case SDL_SCANCODE_F1:
 					show_fps = !show_fps;
@@ -674,6 +815,10 @@ void ClanBomberApplication::run_game() {
 				case SDL_SCANCODE_F3:
 					pause_game = !pause_game;
 #ifdef CLANBOMBER_PS5
+                    Controller_Joystick::pause_transition(false);
+                    confirm_pause_choice = false;
+                    pause_choice = Resume;
+                    pause_needs_draw = true;
                     ps5_startup_log("local match pause", pause_game ? "paused" : "resumed");
 #endif
 					break;
@@ -684,21 +829,53 @@ void ClanBomberApplication::run_game() {
 			}
 		}
 
-		if (play_music){
-			if (!Resources::Music()->isPlaying()){
-				Resources::Music()->playLoop();
-			}
-		}else{
-			if (Resources::Music()->isPlaying()){
-				Resources::Music()->stop();
-			}
-		}
+#ifdef CLANBOMBER_PS5
+        if (escape) break;
+#endif
+        if (play_music != music_requested) {
+            music_requested = play_music;
+            if (music_requested) {
+                if (!match_music) match_music = Resources::Music();
+                match_music->playLoop();
+            } else if (match_music) {
+                match_music->stop();
+            }
+        }
+
+#ifdef CLANBOMBER_PS5
+        if (escape) break;
+        if (pause_game && !pause_needs_draw) {
+            SDL_Delay(8);
+            continue;
+        }
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+#endif
+
+
 
 		if (pause_game) {
 			show_all();
 			CB_FillRect(0, 0, 800, 600, 0, 0, 0, 123);
-			Resources::Font_big()->render(_("- PAUSED -"), 400, 300,
-					cbe::FontAlignment_0topcenter);
+#ifdef CLANBOMBER_PS5
+            pause_needs_draw = false;
+            CB_FillRect(230, 225, 340, 210, 0, 0, 255, 135);
+            Resources::Font_big()->render(_("Paused"), 400, 240, cbe::FontAlignment_0topcenter);
+            auto *font = Resources::Font_small();
+            for (int choice = 0; choice < ChoiceCount; ++choice) {
+                const int y = 294 + choice * 32;
+                if (choice == pause_choice)
+                    CB_FillRect(230, y - 4, 340, 30, 0, 30, 170, 170);
+                font->render(choices[choice], 400, y, cbe::FontAlignment_0topcenter);
+            }
+            if (confirm_pause_choice) {
+                font->render(pause_choice == RestartMatch ? _("Restart Match?") : _("Return to Title?"),
+                             400, 400, cbe::FontAlignment_0topcenter);
+            }
+#else
+            Resources::Font_big()->render(_("- PAUSED -"), 400, 300,
+                                          cbe::FontAlignment_0topcenter);
+#endif
 			SDL_RenderPresent(renderer);
 			continue;
 		}
@@ -727,9 +904,16 @@ void ClanBomberApplication::run_game() {
 
 #ifdef CLANBOMBER_PS5
     ps5_set_match_input(false);
+    pause_game = false;
+    if (result != MatchExit::Finished) {
+        SDL_PumpEvents();
+        SDL_FlushEvent(SDL_KEYDOWN);
+        ps5_startup_log("local match", result == MatchExit::Restart ? "restart confirmed" : "return to title confirmed");
+    }
 #endif
-	if (Resources::Music()->isPlaying())
-		Resources::Music()->stop();
+    if (match_music && match_music->isPlaying())
+        match_music->stop();
+    return result;
 }
 
 Menu *
@@ -861,7 +1045,7 @@ void ClanBomberApplication::show_all() {
 	}
 }
 
-bool ClanBomberApplication::init_game() {
+bool ClanBomberApplication::init_game(int restart_map) {
 #ifdef CLANBOMBER_PS5
     ps5_startup_log("local match", "begin initialization");
 #endif
@@ -880,7 +1064,9 @@ bool ClanBomberApplication::init_game() {
 		return false;
 	}
 
-	if (Config::get_random_map_order()) {
+	if (restart_map >= 0) {
+        map->load(restart_map);
+    } else if (Config::get_random_map_order()) {
 		map->load_random_valid();
 	} else {
 		if (Config::get_start_map() > map->get_map_count() - 1) {

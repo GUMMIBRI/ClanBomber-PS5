@@ -12,4 +12,4 @@ In **New Game → Local Player Setup**, set one player to the first joystick and
 
 Game source is based on [the SDL2 fork](https://github.com/viti95/ClanBomber2) as vendored in [the Switch port](https://github.com/Mayo0x0/Clanbomber2-Nintendo-Switch-Port). See [asset provenance](ASSET-PROVENANCE.md), [upstream credits](upstream/README), and [the PS5 build instructions](ps5-native/BUILD.md).
 
-The released executable is the owner-tested r12 build `01.000.012-2a6c4bef`, compiled from game source commit `cd9e9e9e4da1dc70d18a21bc7af015e75fa5d63b`. The published source snapshot adds build instructions and the native link inputs. The newer six-run logging changes are development-only.
+The released executable is the owner-tested r12 build `01.000.012-2a6c4bef`, compiled from game source commit `cd9e9e9e4da1dc70d18a21bc7af015e75fa5d63b`. The published source snapshot adds build instructions and the native link inputs. The main branch also contains newer development source changes, including bounded diagnostic logging and input handling. These changes are not the tested r12 release; fullscreen presentation remains under development.

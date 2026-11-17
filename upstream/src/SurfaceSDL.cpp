@@ -65,7 +65,9 @@ SDL_Surface *ps5_load_png(const char *filename, bool optional) {
     auto *decoded = SDL_CreateRGBSurfaceWithFormat(
         0, image.width, image.height, 32, SDL_PIXELFORMAT_RGBA32);
     if (!decoded) {
-        ps5_startup_log("PNG surface allocation failed", SDL_GetError());
+        char detail[384];
+        std::snprintf(detail, sizeof(detail), "%.180s: %.150s", filename, SDL_GetError());
+        ps5_startup_log("PNG surface allocation failed", detail);
     } else if (!png_image_finish_read(&image, nullptr, decoded->pixels, decoded->pitch, nullptr)) {
         log_decode();
         SDL_FreeSurface(decoded);
@@ -87,7 +89,11 @@ namespace cbe
 #endif
     texture = surface ? SDL_CreateTextureFromSurface(renderer, surface) : nullptr;
 #ifdef CLANBOMBER_PS5
-    if (surface && !texture) ps5_startup_log("PNG texture failed", SDL_GetError());
+    if (surface && !texture) {
+        char detail[384];
+        std::snprintf(detail, sizeof(detail), "%.180s: %.150s", filename, SDL_GetError());
+        ps5_startup_log("PNG texture failed", detail);
+    }
 #endif
     if (texture) SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     width = surface ? surface->w : 0;

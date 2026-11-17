@@ -21,6 +21,10 @@
  *
  */
 
+#ifdef CLANBOMBER_PS5
+#include <SDL2/SDL.h>
+extern SDL_Renderer *renderer;
+#endif
 #include <cmath>
 #include <string>
 
@@ -124,6 +128,10 @@ GameStatus::get_end_of_game ()
 void
 GameStatus::draw ()
 {
+#ifdef CLANBOMBER_PS5
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+#endif
     Resources::Gamestatus_background ()->blit (0, 0);
 
 #if defined(CLANBOMBER_PS5)

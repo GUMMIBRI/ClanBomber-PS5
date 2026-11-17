@@ -43,11 +43,8 @@ namespace cbe
 
   void AudioSimpleSDL::close()
   {
-    if (initialized = 1) {
+    if (initialized > 0 && --initialized == 0) {
       Mix_CloseAudio();
-    }
-    if (initialized > 0) {
-      initialized--;
     }
   }
 
@@ -58,7 +55,7 @@ namespace cbe
 
   AudioSimpleSDL::~AudioSimpleSDL()
   {
-    Mix_CloseAudio();
+    if (initialized > 0) Mix_CloseAudio();
   }
 
   AudioBuffer *AudioSimpleSDL::createBuffer(std::filesystem::path filename)

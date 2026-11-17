@@ -34,11 +34,11 @@ MapSelector::MapSelector( ClanBomberApplication *_app )
 
     map = new Map(app);
 
-    if (Config::get_start_map() > map->get_map_count()-1)
-    {
-        Config::set_start_map( map->get_map_count() -1 );
-    }
-    current_map = Config::get_start_map();
+    const int map_count = map->get_map_count();
+    if (map_count == 0)
+        return;
+
+    current_map = std::max(0, std::min(Config::get_start_map(), map_count - 1));
     map_at_top = std::min( current_map-5, map->get_map_count()-11 );
     if (map_at_top < 0) map_at_top = 0;
 
@@ -68,6 +68,9 @@ MapSelector::~MapSelector()
 
 void MapSelector::exec()
 {
+    if (map->get_map_count() == 0)
+        return;
+
     draw();
 
     while (1)
@@ -87,6 +90,9 @@ void MapSelector::exec()
                     map->save_selection();
                     return;
                     break;
+#ifdef CLANBOMBER_PS5
+                case SDL_SCANCODE_RETURN:
+#endif
                 case SDL_SCANCODE_SPACE:
                 {
                     map->map_list[current_map]->toggle();
@@ -171,7 +177,12 @@ void MapSelector::draw()
     Resources::Font_big()->render(map->get_name(), 510, 50,
                                   cbe::FontAlignment_0topcenter);
 
-#ifdef __SWITCH__
+#ifdef CLANBOMBER_PS5
+    Resources::Font_small()->render(_("CROSS   TOGGLE MAP"), 10,
+                                    530, cbe::FontAlignment_0topleft);
+    Resources::Font_small()->render(_("CIRCLE   BACK"), 10,
+                                    550, cbe::FontAlignment_0topleft);
+#elif defined(__SWITCH__)
     Resources::Font_small()->render(_("Y   TOGGLE CURRENT SELECTION"), 10,
                                     530, cbe::FontAlignment_0topleft);
     Resources::Font_small()->render(_("L   SELECT ALL MAPS"), 10, 550,

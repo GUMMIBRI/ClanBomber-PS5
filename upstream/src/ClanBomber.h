@@ -154,11 +154,12 @@ protected:
     int init_SDL();
     void init_audio();
     void run_intro();
-    bool init_game(); // single player init
+    bool init_game(int restart_map = -1); // single player init
     void deinit_game();
     void show_tutorial();
 
-    void run_game();
+    enum class MatchExit { Finished, Restart, Title };
+    MatchExit run_game();
     void show_all();
     void act_all();
     void delete_some();

@@ -140,6 +140,14 @@ void Bomber::reset()
 
     skateboards = Config::get_start_skateboards();
     speed = 90 + (skateboards*40);
+#ifdef CLANBOMBER_PS5
+    easy_cpu_bomb_cooldown = 0;
+    if (Config::easy_cpu && controller &&
+        (controller->get_type() == Controller::AI || controller->get_type() == Controller::AI_mass)) {
+        speed -= 15;
+        easy_cpu_bomb_cooldown = 5.0f;
+    }
+#endif
 
     can_kick = Config::get_start_kick();
     cur_bombs = Config::get_start_bombs();
@@ -336,7 +344,7 @@ void Bomber::put_bomb()
         if (app->map->add_bomb( (int)((x+20)/40), (int)((y+20)/40), power, this, (int)x, (int)y ))
         {
 #ifdef CLANBOMBER_PS5
-            if (easy_cpu) easy_cpu_bomb_cooldown = 2.5f;
+            if (easy_cpu) easy_cpu_bomb_cooldown = 5.0f;
             log_match_event("bomb placed", number, controller->get_type(), static_cast<int>(x), static_cast<int>(y));
 #endif
             Resources::Game_putbomb()->play();

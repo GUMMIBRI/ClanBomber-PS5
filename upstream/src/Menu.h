@@ -167,6 +167,7 @@ public:
     void redraw(bool options_menu_hack, int yoffset=0);
     int execute(bool options_menu_hack);
 
+    void return_to_title();
     void scroll_in();
     void scroll_out();
     MenuItem* get_item_by_id( int id );

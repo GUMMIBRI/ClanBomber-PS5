@@ -450,6 +450,13 @@ int Menu::execute(bool options_menu_hack)
     return -1;
 }
 
+void Menu::return_to_title()
+{
+    current_run_id = -1;
+    current_selection = 1;
+    scroll_in();
+}
+
 void Menu::scroll_in()
 {
     Timer timer;

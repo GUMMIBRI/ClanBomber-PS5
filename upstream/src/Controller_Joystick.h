@@ -27,6 +27,9 @@
 #include "Controller.h"
 
 #include <SDL2/SDL.h>
+#ifdef CLANBOMBER_PS5
+#include <vector>
+#endif
 
 class Bomber;
 
@@ -43,11 +46,22 @@ public:
     bool is_up();
     bool is_down();
     bool is_bomb();
+#ifdef CLANBOMBER_PS5
+    static void handle_event(const SDL_Event &event, bool paused);
+    static void pause_transition(bool menu_button);
+#endif
 
 private:
     SDL_Joystick        *joystick;
     SDL_GameController  *gamecontroller;
 
+#ifdef CLANBOMBER_PS5
+    static std::vector<Controller_Joystick *> controllers;
+    SDL_JoystickID instance_id = -1;
+    bool bomb_press_pending = false;
+    bool wait_for_bomb_release = false;
+    unsigned bomb_buttons_held = 0;
+#endif
     bool bomb_button_down;
 
     bool left;

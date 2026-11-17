@@ -254,6 +254,7 @@ return sur_horst_evil;
 }
 
 #ifdef CLANBOMBER_PS5
+void ps5_startup_log(const char *, const char *);
 SDL_Surface *ps5_load_png(const char *, bool);
 #endif
 
@@ -487,7 +488,9 @@ return music;
 Resources::Surface::Surface(const char *filename, int sprite_width,
 int sprite_height)
 #ifdef CLANBOMBER_PS5
-    : Surface(ps5_load_png(filename, false), sprite_width, sprite_height) {}
+    : Surface(ps5_load_png(filename, false), sprite_width, sprite_height) {
+    if (!texture) ps5_startup_log("sprite sheet unavailable", filename);
+}
 #else
     : Surface(IMG_Load(filename), sprite_width, sprite_height) {}
 #endif

@@ -20,29 +20,68 @@ extern "C" int sceSystemServiceLoadExec(const char *, const char **);
 extern "C" int sceKernelUsleep(unsigned int);
 
 namespace {
-constexpr char log_path[] = "/mnt/usb0/homebrew/PPSA77028/clanbomber-startup.log";
-constexpr char previous_log_path[] = "/mnt/usb0/homebrew/PPSA77028/clanbomber-startup.previous.log";
-constexpr long log_limit = 128 * 1024;
-constexpr long run_budget = 16 * 1024;
+constexpr char log_root[] = "/mnt/usb0/homebrew/PPSA77028";
+constexpr char diagnostic_build[] = "01.000.026";
+constexpr unsigned slot_count = 6;
+constexpr long log_limit = 16 * 1024;
+char log_path[192]{};
 long run_time;
 unsigned step;
 
+void slot_path(char *path, size_t size, unsigned slot) {
+    std::snprintf(path, size, "%s/clanbomber-run-%u.log", log_root, slot);
+}
+
 void begin_startup_log() {
     run_time = static_cast<long>(std::time(nullptr));
-    struct stat existing{};
-    if (stat(log_path, &existing) == 0 && existing.st_size >= log_limit - run_budget)
-        std::rename(log_path, previous_log_path);
+    unsigned vacant = 0, oldest = 0;
+    unsigned long oldest_sequence = 0, newest_sequence = 0;
+    for (unsigned slot = 1; slot <= slot_count; ++slot) {
+        char path[sizeof(log_path)];
+        slot_path(path, sizeof(path), slot);
+        struct stat info{};
+        if (stat(path, &info) != 0) {
+            if (errno == ENOENT && vacant == 0) vacant = slot;
+            continue;
+        }
+        if (!S_ISREG(info.st_mode)) continue;
+        auto *log = std::fopen(path, "r");
+        if (!log) continue;
+        unsigned long sequence = 0;
+        const bool valid = std::fscanf(log, "ClanBomber diagnostic sequence=%lu", &sequence) == 1;
+        std::fclose(log);
+        if (!valid || sequence == 0) continue;
+        if (sequence > newest_sequence) newest_sequence = sequence;
+        if (oldest == 0 || sequence < oldest_sequence) {
+            oldest = slot;
+            oldest_sequence = sequence;
+        }
+    }
+    const unsigned slot = vacant ? vacant : oldest;
+    if (!slot) return;
+
+    char path[sizeof(log_path)];
+    slot_path(path, sizeof(path), slot);
+    if (auto *log = std::fopen(path, "w")) {
+        const int result = std::fprintf(log,
+            "ClanBomber diagnostic sequence=%lu build=%s run=%ld-%d\n",
+            newest_sequence + 1, diagnostic_build, run_time, static_cast<int>(getpid()));
+        const int closed = std::fclose(log);
+        if (result > 0 && closed == 0)
+            std::snprintf(log_path, sizeof(log_path), "%s", path);
+    }
 }
 }
 
 void ps5_startup_log(const char *stage, const char *detail) {
+    if (!log_path[0]) return;
     const int saved_errno = errno;
     if (auto *log = std::fopen(log_path, "a")) {
         if (std::fseek(log, 0, SEEK_END) == 0) {
             const long size = std::ftell(log);
             if (size >= 0 && size <= log_limit - 512)
-                std::fprintf(log, "build=01.000.012 run=%ld-%d step=%03u %s: %.320s\n",
-                             run_time, static_cast<int>(getpid()), ++step, stage, detail);
+                std::fprintf(log, "build=%s run=%ld-%d step=%03u %.64s: %.320s\n",
+                             diagnostic_build, run_time, static_cast<int>(getpid()), ++step, stage, detail);
         }
         std::fclose(log);
     }
@@ -132,6 +171,10 @@ bool select_app_dir(const std::filesystem::path &dir) {
 
 std::string ps5_app_path(const char *relative) {
     return (app_root / relative).string();
+}
+
+SDL_JoystickID ps5_menu_pad_id() {
+    return menu_pad ? SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(menu_pad)) : -1;
 }
 
 void ps5_set_match_input(bool active) {
