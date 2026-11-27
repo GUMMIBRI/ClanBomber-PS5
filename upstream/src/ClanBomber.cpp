@@ -802,7 +802,7 @@ int ClanBomberApplication::main() {
 
 ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
     MatchExit result = MatchExit::Finished;
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     bool confirm_pause_choice = false;
     enum PauseChoice { Resume, RestartMatch, ReturnToTitle, ChoiceCount };
     int pause_choice = Resume;
@@ -838,7 +838,7 @@ ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
                 pause_needs_draw = true;
 #endif
 			if (event.type == SDL_KEYDOWN) {
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
                 if (event.key.repeat) continue;
                 if (pause_game) {
                     switch (event.key.keysym.scancode) {
@@ -854,7 +854,9 @@ ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
                         if (confirm_pause_choice) pause_needs_draw = true;
                         else {
                             pause_game = false;
+#ifdef CLANBOMBER_PS5
                             Controller_Joystick::pause_transition(true);
+#endif
                         }
                         confirm_pause_choice = false;
                         continue;
@@ -867,7 +869,9 @@ ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
                             pause_needs_draw = true;
                         } else {
                             pause_game = false;
+#ifdef CLANBOMBER_PS5
                             Controller_Joystick::pause_transition(true);
+#endif
                         }
                         break;
                     default:
@@ -888,10 +892,14 @@ ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
 					pause_game = !pause_game;
 #ifdef CLANBOMBER_PS5
                     Controller_Joystick::pause_transition(false);
+#endif
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
                     confirm_pause_choice = false;
                     pause_choice = Resume;
                     pause_needs_draw = true;
+#ifdef CLANBOMBER_PS5
                     ps5_startup_log("local match pause", pause_game ? "paused" : "resumed");
+#endif
 #endif
 					break;
 				case SDL_SCANCODE_ESCAPE:
@@ -901,7 +909,7 @@ ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
 			}
 		}
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
         if (escape) break;
 #endif
         if (play_music != music_requested) {
@@ -929,7 +937,7 @@ ClanBomberApplication::MatchExit ClanBomberApplication::run_game() {
 		if (pause_game) {
 			show_all();
 			CB_FillRect(0, 0, 800, 600, 0, 0, 0, 123);
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
             pause_needs_draw = false;
             CB_FillRect(230, 225, 340, 210, 0, 0, 255, 135);
             Resources::Font_big()->render(_("Paused"), 400, 240, cbe::FontAlignment_0topcenter);
@@ -1217,8 +1225,17 @@ bool ClanBomberApplication::desktop_match_self_test() {
         show_all();
         SDL_RenderPresent(renderer);
     }
+    // Exercise the desktop pause menu and confirmed restart without user input.
+    for (const SDL_Scancode key : {SDL_SCANCODE_P, SDL_SCANCODE_DOWN,
+                                   SDL_SCANCODE_RETURN, SDL_SCANCODE_RETURN}) {
+        SDL_Event event{};
+        event.type = SDL_KEYDOWN;
+        event.key.keysym.scancode = key;
+        if (SDL_PushEvent(&event) != 1) return false;
+    }
+    const bool restart = run_game() == MatchExit::Restart;
     deinit_game();
-    return created && bomber_objects.empty();
+    return created && restart && bomber_objects.empty();
 }
 #endif
 

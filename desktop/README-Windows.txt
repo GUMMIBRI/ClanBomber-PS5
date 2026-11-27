@@ -4,6 +4,8 @@ Extract the entire archive and run ClanBomber.exe. Keep the DLLs, ClanBomber2
 and characters folders alongside the executable. Player one uses the arrow
 keys to move and Enter to place bombs by default. See the in-game player setup
 for additional controls. Optional custom character files go in characters.
+Press P during a match to pause; use the arrow keys and Enter to navigate the
+pause menu, or Backspace to go back.
 
 Clan Bomber is distributed under the GNU GPL; see LICENSE. Font licensing is
 in LICENSE.DEJAVU. SDL library and additional third-party notices accompany

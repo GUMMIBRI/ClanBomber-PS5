@@ -9,6 +9,8 @@ different package names. It was built on Ubuntu 22.04.
 Player one uses the arrow keys to move and Enter to place bombs by default.
 See the in-game player setup for additional controls. Optional custom character
 files go in the characters directory alongside the executable.
+Press P during a match to pause; use the arrow keys and Enter to navigate the
+pause menu, or Backspace to go back.
 
 Clan Bomber is distributed under the GNU GPL; see LICENSE. Font licensing is
 in LICENSE.DEJAVU. Source and notices are available with the release.
