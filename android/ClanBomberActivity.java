@@ -58,6 +58,7 @@ public class ClanBomberActivity extends SDLActivity {
         Button button = new Button(this);
         button.setText(label);
         button.setTextSize(12);
+        button.setPadding(0, 0, 0, 0);
         button.setAllCaps(false);
         button.setAlpha(0.72f);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size, gravity);
