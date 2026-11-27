@@ -1,0 +1,22 @@
+name: Android preview build
+on:
+  workflow_dispatch:
+  push:
+    branches: [android-port-20261127]
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build Android debug APK
+        run: bash android/build-ci.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClanBomber-Android-debug-arm64
+          path: android-generated/app/build/outputs/apk/debug/*.apk

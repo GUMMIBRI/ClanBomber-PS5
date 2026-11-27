@@ -42,7 +42,15 @@ bool RecursiveDirCreation(const std::filesystem::path &path) {
 }
 
 //----------NINTENDO SWITCH (libnx)----------
-#if defined(CLANBOMBER_PS5)
+#if defined(__ANDROID__)
+#include <SDL2/SDL_system.h>
+std::filesystem::path GetHome() {
+    const char *path = SDL_AndroidGetInternalStoragePath();
+    return path ? std::filesystem::path(path) : std::filesystem::path(".");
+}
+std::filesystem::path GetDataHome() { return GetHome(); }
+std::filesystem::path GetConfigHome() { return GetHome(); }
+#elif defined(CLANBOMBER_PS5)
 std::filesystem::path GetHome() {
     return "/data/clanbomber2-ps5";
 }

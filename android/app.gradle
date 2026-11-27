@@ -1,0 +1,18 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'org.clanbomber.game'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'org.clanbomber.game'
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName '2.0-android-preview'
+        externalNativeBuild { cmake {
+            arguments "-DCLAN_SOURCE_ROOT=${System.getenv('CLAN_SOURCE_ROOT')}", "-DCLAN_DEPS_ROOT=${System.getenv('CLAN_DEPS_ROOT')}", '-DANDROID_STL=c++_shared'
+            abiFilters 'arm64-v8a'
+        } }
+    }
+    externalNativeBuild { cmake { path System.getenv('CLAN_SOURCE_ROOT') + '/android/CMakeLists.txt' } }
+    buildTypes { release { minifyEnabled false } }
+}
