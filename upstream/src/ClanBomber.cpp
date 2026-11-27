@@ -103,6 +103,9 @@ bool game_object_compare(GameObject * go1, GameObject * go2) {
 }
 
 ClanBomberApplication::ClanBomberApplication() {
+#ifdef CLANBOMBER_DESKTOP
+	AS = nullptr;
+#endif
 	observer = NULL;
 	map = NULL;
 	pause_game = false;
@@ -127,7 +130,11 @@ ClanBomberApplication::~ClanBomberApplication() {
 	return;
 #endif
 
+#ifdef CLANBOMBER_DESKTOP
+	if (AS) AS->close();
+#else
 	AS->close();
+#endif
 	TTF_Quit();
 	SDL_Quit();
 
@@ -1579,9 +1586,9 @@ int main(int argc, char **argv) {
 		return ok ? 0 : 1;
 	}
 #endif
-	app->main();
+	int result = app->main();
 	delete app;
 
-	return 0;
+	return result == 0 ? 0 : 1;
 }
 #endif /* __SWITCH__ */
