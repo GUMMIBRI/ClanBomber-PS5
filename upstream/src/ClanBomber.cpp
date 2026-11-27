@@ -204,6 +204,9 @@ int ClanBomberApplication::init_SDL() {
 #else
     const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS;
 #endif
+#elif defined(__ANDROID__)
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP;
 #else
     const Uint32 fullscreen = Config::get_fullscreen() ? SDL_WINDOW_FULLSCREEN : 0;
     const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | fullscreen;

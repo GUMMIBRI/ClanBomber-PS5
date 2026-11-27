@@ -42,7 +42,8 @@ public class ClanBomberActivity extends SDLActivity {
         FrameLayout controls = new FrameLayout(this);
         controls.setMotionEventSplittingEnabled(true);
         mLayout.addView(controls, new android.widget.RelativeLayout.LayoutParams(-1, -1));
-        int size = (int)(64 * getResources().getDisplayMetrics().density);
+        int size = Math.min((int)(56 * getResources().getDisplayMetrics().density),
+                            getResources().getDisplayMetrics().heightPixels / 5);
         addControl(controls, "▲", KeyEvent.KEYCODE_DPAD_UP, Gravity.LEFT | Gravity.BOTTOM, size, 2*size, size);
         addControl(controls, "◀", KeyEvent.KEYCODE_DPAD_LEFT, Gravity.LEFT | Gravity.BOTTOM, 0, size, size);
         addControl(controls, "▼", KeyEvent.KEYCODE_DPAD_DOWN, Gravity.LEFT | Gravity.BOTTOM, size, 0, size);

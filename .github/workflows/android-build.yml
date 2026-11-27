@@ -53,6 +53,7 @@ jobs:
           adb logcat -d > logcat.txt
           adb exec-out screencap -p > screenshot.png
           adb shell pidof org.clanbomber.game
+          python3 -c 'import struct; f=open("screenshot.png","rb"); f.seek(16); w,h=struct.unpack(">II",f.read(8)); print("Screenshot:",w,h); assert w>h, "Game did not stay in landscape"'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
