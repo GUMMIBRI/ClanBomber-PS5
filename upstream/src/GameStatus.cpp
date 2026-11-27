@@ -59,11 +59,14 @@ GameStatus::show ()
         Resources::Gamestatus_klatsch ()->play ();
     }
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(__ANDROID__)
     SDL_PumpEvents();
     SDL_FlushEvent(SDL_KEYDOWN);
 #endif
     bool space_pressed = false;
+#ifdef __ANDROID__
+    SDL_Log("ClanBomber results ready");
+#endif
 
     while (!space_pressed)
     {
@@ -77,7 +80,7 @@ GameStatus::show ()
 #endif
                 switch (event.key.keysym.scancode)
                 {
-#if defined(__SWITCH__) || defined(CLANBOMBER_PS5)
+#if defined(__SWITCH__) || defined(CLANBOMBER_PS5) || defined(__ANDROID__)
                 case SDL_SCANCODE_RETURN:
 #endif
                 case SDL_SCANCODE_SPACE:
@@ -90,6 +93,9 @@ GameStatus::show ()
         }
         draw ();
     }
+#ifdef __ANDROID__
+    SDL_Log("ClanBomber results continued");
+#endif
 
     CB_FillRect(0, 0, 800, 600, 0, 0, 0);
     CB_Flip ();
@@ -141,6 +147,9 @@ GameStatus::draw ()
     Resources::Font_small ()->render (_("PRESS A TO CONTINUE"), 400,
                                               570,
                                               cbe::FontAlignment_0topcenter);
+#elif defined(__ANDROID__)
+    Resources::Font_small ()->render (_("TAP OK TO CONTINUE"), 400,
+                                              570, cbe::FontAlignment_0topcenter);
 #else
     Resources::Font_small ()->render (_("PRESS SPACE TO CONTINUE"), 400,
                                               570,

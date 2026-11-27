@@ -146,6 +146,11 @@ void Bomber::reset()
 
     skateboards = Config::get_start_skateboards();
     speed = 90 + (skateboards*40);
+#ifdef __ANDROID__
+    if (controller && controller->get_type() != Controller::AI &&
+        controller->get_type() != Controller::AI_mass)
+        speed += 25;
+#endif
 #if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     easy_cpu_bomb_cooldown = 0;
     if (Config::cpu_difficulty > 0 && controller &&

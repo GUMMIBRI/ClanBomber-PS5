@@ -61,6 +61,30 @@ jobs:
           adb shell input tap 75 "$((height - 25))"
           sleep 2
           adb exec-out screencap -p > screenshot-after-dpad.png
+          adb shell input tap 75 "$((height - 143))"
+          sleep 1
+          adb shell input tap "$((width - 50))" "$((height - 75))"
+          sleep 8
+          adb shell input swipe 75 "$((height - 143))" 125 "$((height - 75))" 700
+          adb shell input tap "$((width - 50))" "$((height - 75))"
+          for i in $(seq 1 150); do
+            output=$(adb logcat -d -s 'SDL/APP:I')
+            grep -q 'ClanBomber results ready' <<< "$output" && break
+            sleep 1
+          done
+          adb logcat -d -s 'SDL/APP:I' > results-log.txt
+          grep -q 'ClanBomber results ready' results-log.txt
+          adb exec-out screencap -p > screenshot-results.png
+          adb shell input tap "$((width - 50))" "$((height - 75))"
+          for i in $(seq 1 15); do
+            output=$(adb logcat -d -s 'SDL/APP:I')
+            grep -q 'ClanBomber results continued' <<< "$output" && break
+            sleep 1
+          done
+          adb logcat -d -s 'SDL/APP:I' > results-log.txt
+          grep -q 'ClanBomber results continued' results-log.txt
+          sleep 4
+          adb exec-out screencap -p > screenshot-after-results.png
           adb shell pidof org.clanbomber.game
       - uses: actions/upload-artifact@v4
         if: always()
@@ -72,3 +96,6 @@ jobs:
             screenshot.png
             screenshot-after-touch.png
             screenshot-after-dpad.png
+            screenshot-results.png
+            screenshot-after-results.png
+            results-log.txt
