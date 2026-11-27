@@ -1255,7 +1255,7 @@ void ClanBomberApplication::deinit_game() {
 	}
 }
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(__ANDROID__)
 static bool intro_skip_requested()
 {
     SDL_Event event;
@@ -1292,7 +1292,7 @@ void ClanBomberApplication::run_intro() {
 	SDL_RenderClear(renderer);
 	SDL_RenderPresent(renderer);
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(__ANDROID__)
     const Uint32 intro_start = SDL_GetTicks();
     while (SDL_GetTicks() - intro_start < 2000) {
         if (intro_skip_requested()) return;
@@ -1306,7 +1306,7 @@ void ClanBomberApplication::run_intro() {
 	Resources::Intro_winlevel()->play();
 	while (!keyboard[escape]) {
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(__ANDROID__)
         if (intro_skip_requested()) return;
 #else
         SDL_PumpEvents();
@@ -1334,7 +1334,7 @@ void ClanBomberApplication::run_intro() {
 
 		for (int domispell = 0; domispell <= domihack.length(); domispell++) {
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(__ANDROID__)
             if (intro_skip_requested()) return;
 #else
             SDL_PumpEvents();

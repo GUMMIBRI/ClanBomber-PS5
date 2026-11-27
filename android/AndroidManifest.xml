@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
-    <application android:label="Clan Bomber" android:theme="@android:style/Theme.NoTitleBar.Fullscreen" android:allowBackup="true" android:hardwareAccelerated="true">
+    <application android:label="Clan Bomber" android:icon="@drawable/icon" android:theme="@android:style/Theme.NoTitleBar.Fullscreen" android:allowBackup="true" android:hardwareAccelerated="true">
         <activity android:name="org.clanbomber.game.ClanBomberActivity" android:screenOrientation="sensorLandscape" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -21,6 +21,8 @@ cp -r "$deps/SDL2/android-project" "$project"
 cp "$root/android/app.gradle" "$project/app/build.gradle"
 cp "$root/android/AndroidManifest.xml" "$project/app/src/main/AndroidManifest.xml"
 mkdir -p "$project/app/src/main/java/org/clanbomber/game" "$project/app/src/main/assets/ClanBomber2"
+mkdir -p "$project/app/src/main/res/drawable-nodpi"
+cp "$root/android/icon.png" "$project/app/src/main/res/drawable-nodpi/icon.png"
 cp "$root/android/ClanBomberActivity.java" "$project/app/src/main/java/org/clanbomber/game/"
 cp -r "$root/upstream/src/"{fonts,maps,pics,wavs} "$project/app/src/main/assets/ClanBomber2/"
 find "$project/app/src/main/assets/ClanBomber2" -name Makefile.am -delete
