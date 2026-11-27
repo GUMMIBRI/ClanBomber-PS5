@@ -15,7 +15,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class ClanBomberActivity extends SDLActivity {
-    @Override protected String[] getLibraries() { return new String[] {"SDL2", "main"}; }
+    @Override protected String[] getLibraries() {
+        return new String[] {"SDL2", "SDL2_image", "SDL2_mixer", "SDL2_ttf", "main"};
+    }
 
     private void copyAssets(AssetManager assets, String path, File target) throws IOException {
         String[] children = assets.list(path);
