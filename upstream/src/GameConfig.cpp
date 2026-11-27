@@ -660,7 +660,11 @@ bool Config::save(bool init)
 bool Config::load()
 {
 #if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+#ifdef __ANDROID__
+    cpu_difficulty = 2; // New Android installs start on Easy; saved choices still win.
+#else
     cpu_difficulty = 0;
+#endif
     for (bool &random_skin : random_cpu_skin) random_skin = true;
 #endif
     std::ifstream configfile(path / filename);
