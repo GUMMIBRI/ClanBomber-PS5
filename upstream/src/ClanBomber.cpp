@@ -22,6 +22,7 @@
  */
 
 #include "AssetPath.h"
+#include "SkinSelection.h"
 #include "ClanBomber.h"
 
 
@@ -32,6 +33,14 @@
 
 #include <filesystem>
 #include <SDL2/SDL.h>
+#ifdef CLANBOMBER_DESKTOP
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_ttf.h>
+#endif
+#if defined(CLANBOMBER_PS5_VULKAN)
+#include <SDL2/SDL_vulkan.h>
+#endif
 
 #include "config.h"
 #include "Controller.h"
@@ -99,6 +108,9 @@ ClanBomberApplication::ClanBomberApplication() {
 	pause_game = false;
 
 	// initialize fast_random
+#ifdef CLANBOMBER_DESKTOP
+	std::srand(static_cast<unsigned>(std::time(nullptr)));
+#endif
 	for (int i = 0; i < 16; i++)
 		state[i] = rand();
 }
@@ -155,6 +167,16 @@ int ClanBomberApplication::init_SDL() {
     int window_width = 800;
     int window_height = 600;
 #ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5_VULKAN)
+    // Update the SDL2 PS5 GPU output mode before reading the desktop extent.
+    if (SDL_Vulkan_LoadLibrary(nullptr) != 0) {
+        ps5_startup_log("static Vulkan load", SDL_GetError());
+        return -1;
+    }
+    struct VulkanLoaderReference {
+        ~VulkanLoaderReference() { SDL_Vulkan_UnloadLibrary(); }
+    } loader_reference;
+#endif
     SDL_DisplayMode display_mode{};
     if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
         ps5_startup_log("desktop display mode", SDL_GetError());
@@ -162,7 +184,19 @@ int ClanBomberApplication::init_SDL() {
     }
     window_width = display_mode.w;
     window_height = display_mode.h;
+#if defined(CLANBOMBER_PS5_VULKAN)
+    const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_VULKAN;
+#elif defined(CLANBOMBER_PS5_GPU)
+    if (SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES) != 0 ||
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2) != 0 ||
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0) != 0) {
+        ps5_startup_log("GPU context attributes", SDL_GetError());
+        return -1;
+    }
+    const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_OPENGL;
+#else
     const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS;
+#endif
 #else
     const Uint32 fullscreen = Config::get_fullscreen() ? SDL_WINDOW_FULLSCREEN : 0;
     const Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | fullscreen;
@@ -208,17 +242,34 @@ int ClanBomberApplication::init_SDL() {
     for (int i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
         SDL_RendererInfo driver{};
         if (SDL_GetRenderDriverInfo(i, &driver) == 0 &&
-            (driver.flags & renderMode) == renderMode) {
+            (driver.flags & renderMode) == renderMode
+#if defined(CLANBOMBER_PS5_VULKAN)
+            && SDL_strcmp(driver.name, "ps5vulkan") == 0
+#endif
+        ) {
             renderer_index = i;
             ps5_startup_log("requested renderer", driver.name);
             break;
         }
     }
+#if defined(CLANBOMBER_PS5_VULKAN)
+    if (renderer_index < 0) {
+        ps5_startup_log("SDL renderer selection", "required ps5vulkan driver is unavailable");
+        return -1;
+    }
+#endif
     renderer = SDL_CreateRenderer(gameWindow, renderer_index, renderMode);
 #else
     renderer = SDL_CreateRenderer(gameWindow, -1, renderMode);
 #endif
+#ifdef CLANBOMBER_DESKTOP
+    if (!gameWindow || !renderer) {
+        std::cerr << "Unable to create the game window or renderer: " << SDL_GetError() << std::endl;
+        return -1;
+    }
+#endif
 #ifdef CLANBOMBER_PS5
+#if !defined(CLANBOMBER_PS5_GPU) && !defined(CLANBOMBER_PS5_VULKAN)
     if (!renderer) {
         ps5_startup_log("desktop renderer failed; diagnostic fallback to 800x600", SDL_GetError());
         if (SDL_SetWindowFullscreen(gameWindow, 0) == 0) {
@@ -226,6 +277,7 @@ int ClanBomberApplication::init_SDL() {
             renderer = SDL_CreateRenderer(gameWindow, -1, renderMode);
         }
     }
+#endif
     if (!renderer) {
         ps5_startup_log("SDL renderer creation", SDL_GetError());
         return -1;
@@ -253,6 +305,16 @@ int ClanBomberApplication::init_SDL() {
                       renderer_info.name, renderer_info.flags);
         ps5_startup_log("renderer backend", detail);
     }
+#ifdef CLANBOMBER_PS5_GPU
+    using GLGetString = const unsigned char *(*)(unsigned int);
+    auto get_gl_string = reinterpret_cast<GLGetString>(SDL_GL_GetProcAddress("glGetString"));
+    if (get_gl_string) {
+        const auto *device_name = get_gl_string(0x1F01); /* GL_RENDERER */
+        ps5_startup_log("GPU device", device_name ? reinterpret_cast<const char *>(device_name) : "unknown");
+    } else {
+        ps5_startup_log("GPU device", "glGetString unavailable");
+    }
+#endif
     std::snprintf(detail, sizeof(detail), "window=%dx%d output=%dx%d present=%dx%d",
                   actual_width, actual_height, output_width, output_height,
                   have_present_mode ? present_mode.w : 0,
@@ -355,6 +417,8 @@ int ClanBomberApplication::main() {
 #endif
 	Config::load();
 #ifdef CLANBOMBER_PS5
+    ps5_startup_log("intro credit", "preloading original logo");
+    Resources::Intro_fl_logo();
     ps5_startup_log("match resources", "begin");
     Resources::Game_putbomb();
     Resources::Game_explode();
@@ -382,11 +446,12 @@ int ClanBomberApplication::main() {
 	menu->add_item(_("New Game"), MENU_GAME);
 	menu->add_item(_("Start Local"), LOCALGAME_START, MENU_GAME);
 	menu->add_item(_("Local Player Setup"), MENU_PLAYER_SETUP, MENU_GAME);
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     static std::string cpu_normal = _("Normal");
     static std::string cpu_easy = _("Easy");
+    static std::string cpu_hard = _("Hard");
     menu->add_stringlist(_("CPU Difficulty"), CONFIG_CPU_DIFFICULTY, MENU_GAME,
-                         {&cpu_normal, &cpu_easy}, Config::easy_cpu ? 1 : 0);
+                         {&cpu_easy, &cpu_normal, &cpu_hard}, cpu_difficulty::to_menu(Config::cpu_difficulty));
 #endif
 	menu->add_item(_("Map Selection"), CONFIG_MAP_SEL, MENU_GAME);
 	menu->add_value(_("Random Bomber Positions"), CONFIG_RANDOM_POSITIONS,
@@ -692,10 +757,10 @@ int ClanBomberApplication::main() {
 					static_cast<MenuItem_Value *>(item)->get_value());
 			Config::save();
 			break;
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
         case CONFIG_CPU_DIFFICULTY:
-            Config::easy_cpu = static_cast<MenuItem_StringList *>(item)->get_value() == 1;
-            if (!Config::save()) ps5_startup_log("CPU difficulty", "config save failed");
+            Config::cpu_difficulty = cpu_difficulty::from_menu(static_cast<MenuItem_StringList *>(item)->get_value());
+            Config::save();
             break;
 #endif
 		case LOCALGAME_START: {
@@ -1083,8 +1148,17 @@ bool ClanBomberApplication::init_game(int restart_map) {
 	for (int i = 0; i < 8; i++) {
 		if (Config::bomber[i].is_enabled()) {
 			pos = map->get_bomber_pos(j++);
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+            const int controller_type = Config::bomber[i].get_controller();
+            const bool cpu = controller_type == Controller::AI || controller_type == Controller::AI_mass;
+            const unsigned long draw = cpu && Config::random_cpu_skin[i] ? fast_random() : 0;
+            const int chosen_skin = skin_selection::resolve(Config::bomber[i].get_skin(),
+                                                             Config::random_cpu_skin[i], cpu, draw, NR_BOMBERSKINS);
+#else
+            const int chosen_skin = Config::bomber[i].get_skin();
+#endif
 			new Bomber((int) (pos.x * 40), (int) (pos.y * 40),
-					static_cast<Bomber::COLOR>(Config::bomber[i].get_skin()),
+					static_cast<Bomber::COLOR>(chosen_skin),
 					Controller::create(
 							static_cast<Controller::CONTROLLER_TYPE>(Config::bomber[i].get_controller())),
 					Config::bomber[i].get_name(), Config::bomber[i].get_team(),
@@ -1117,6 +1191,30 @@ bool ClanBomberApplication::init_game(int restart_map) {
 	return true;
 }
 
+#ifdef CLANBOMBER_DESKTOP
+bool ClanBomberApplication::desktop_match_self_test() {
+    map_path = CB_ASSET("/maps");
+    local_map_path = std::filesystem::temp_directory_path() / "clanbomber-self-test-no-custom-maps";
+    Config::bomber[0].set_controller(Controller::KEYMAP_1);
+    Config::bomber[0].set_enabled(true);
+    Config::bomber[1].set_controller(Controller::AI);
+    Config::bomber[1].set_enabled(true);
+    for (int i = 2; i < 8; ++i) Config::bomber[i].set_enabled(false);
+    if (!init_game()) return false;
+    const bool created = map && observer && bomber_objects.size() == 2;
+    Timer::reset();
+    for (int i = 0; i < 8; ++i) {
+        SDL_Delay(10);
+        Timer::time_elapsed(true);
+        act_all();
+        show_all();
+        SDL_RenderPresent(renderer);
+    }
+    deinit_game();
+    return created && bomber_objects.empty();
+}
+#endif
+
 void ClanBomberApplication::deinit_game() {
 	// delete all GameObjects
 	for (const auto &object_iter : objects) {
@@ -1133,6 +1231,34 @@ void ClanBomberApplication::deinit_game() {
 	}
 }
 
+#ifdef CLANBOMBER_PS5
+static bool intro_skip_requested()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_CONTROLLERBUTTONDOWN &&
+            (event.cbutton.button == SDL_CONTROLLER_BUTTON_A ||
+             event.cbutton.button == SDL_CONTROLLER_BUTTON_B ||
+             event.cbutton.button == SDL_CONTROLLER_BUTTON_START))
+            {
+                SDL_FlushEvents(SDL_KEYDOWN, SDL_KEYUP);
+                SDL_FlushEvents(SDL_CONTROLLERBUTTONDOWN, SDL_CONTROLLERBUTTONUP);
+                return true;
+            }
+        if (event.type == SDL_KEYDOWN && !event.key.repeat &&
+            (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE ||
+             event.key.keysym.scancode == SDL_SCANCODE_RETURN ||
+             event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE))
+            {
+                SDL_FlushEvents(SDL_KEYDOWN, SDL_KEYUP);
+                SDL_FlushEvents(SDL_CONTROLLERBUTTONDOWN, SDL_CONTROLLERBUTTONUP);
+                return true;
+            }
+    }
+    return false;
+}
+#endif
+
 void ClanBomberApplication::run_intro() {
 	SDL_Scancode escape = SDL_SCANCODE_ESCAPE;
 	float alpha = 0;
@@ -1142,13 +1268,25 @@ void ClanBomberApplication::run_intro() {
 	SDL_RenderClear(renderer);
 	SDL_RenderPresent(renderer);
 
-	sleep(2);
+#ifdef CLANBOMBER_PS5
+    const Uint32 intro_start = SDL_GetTicks();
+    while (SDL_GetTicks() - intro_start < 2000) {
+        if (intro_skip_requested()) return;
+        SDL_Delay(10);
+    }
+#else
+    sleep(2);
+#endif
 
 	Timer::reset();
 	Resources::Intro_winlevel()->play();
 	while (!keyboard[escape]) {
 
-		SDL_PumpEvents();
+#ifdef CLANBOMBER_PS5
+        if (intro_skip_requested()) return;
+#else
+        SDL_PumpEvents();
+#endif
 
 		SDL_RenderClear(renderer);
 
@@ -1172,7 +1310,11 @@ void ClanBomberApplication::run_intro() {
 
 		for (int domispell = 0; domispell <= domihack.length(); domispell++) {
 
-			SDL_PumpEvents();
+#ifdef CLANBOMBER_PS5
+            if (intro_skip_requested()) return;
+#else
+            SDL_PumpEvents();
+#endif
 
 			SDL_RenderClear(renderer);
 
@@ -1380,8 +1522,17 @@ std::filesystem::path ClanBomberApplication::get_local_map_path() {
 int main(int argc, char **argv) {
 
 	CB_Locale();
+#ifdef CLANBOMBER_DESKTOP
+	bool self_test = false;
+#endif
 	// parse command line options
 	for (int i = 1; i < argc; i++) {
+#ifdef CLANBOMBER_DESKTOP
+		if (!strcmp(argv[i], "--self-test")) {
+			self_test = true;
+			Config::set_softwareRendering(true);
+		} else
+#endif
 		if (!strcmp(argv[i], "--help")) {
 			std::cout
 					<< _(
@@ -1405,6 +1556,29 @@ int main(int argc, char **argv) {
 	}
 
 	app = new ClanBomberApplication();
+#ifdef CLANBOMBER_DESKTOP
+	if (self_test) {
+		if (app->desktop_init_for_self_test() != 0) return 1;
+		bool ok = true;
+		for (int skin = 0; skin < NR_BOMBERSKINS; ++skin) {
+			auto *sprite = Resources::Bombers(skin);
+			if (!sprite || !sprite->texture) { std::cerr << "Missing skin " << skin << std::endl; ok = false; continue; }
+			for (int frame = 0; frame < 40; ++frame) sprite->put_screen(0, 0, frame);
+		}
+		SDL_Surface *title = IMG_Load(CB_ASSET("/pics/clanbomber_title_andi.png"));
+		TTF_Font *font = TTF_OpenFont(CB_ASSET("/fonts/DejaVuSans-Bold.ttf"), 18);
+		Mix_Chunk *sound = Mix_LoadWAV(CB_ASSET("/wavs/putbomb.wav"));
+		if (!title || !font || !sound || !std::filesystem::exists(CB_ASSET("/maps/Ghostbear.map"))) ok = false;
+		if (title) SDL_FreeSurface(title);
+		if (font) TTF_CloseFont(font);
+		if (sound) Mix_FreeChunk(sound);
+		SDL_RenderPresent(renderer);
+		if (!app->desktop_match_self_test()) { std::cerr << "Match initialization failed" << std::endl; ok = false; }
+		delete app;
+		std::cout << (ok ? "Desktop asset smoke test passed" : "Desktop asset smoke test failed") << std::endl;
+		return ok ? 0 : 1;
+	}
+#endif
 	app->main();
 	delete app;
 

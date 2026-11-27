@@ -1112,6 +1112,11 @@ bool Controller_AI_mass::has_disease (int map_x, int map_y) const
 
 int Controller_AI_mass::attack_rating(int map_x, int map_y) const
 {
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+    const int enemy_attack = cpu_difficulty::enemy_attack_value(Config::cpu_difficulty, RATING_ENEMY_BOMBER);
+#else
+    const int enemy_attack = RATING_ENEMY_BOMBER;
+#endif
     int num = 0;
     int i = map_x;
     int j = map_y;
@@ -1125,7 +1130,7 @@ int Controller_AI_mass::attack_rating(int map_x, int map_y) const
     {
         if (enemy_bomber (i, j))
         {
-            num += RATING_ENEMY_BOMBER;
+            num += enemy_attack;
         }
     }
 
@@ -1141,7 +1146,7 @@ int Controller_AI_mass::attack_rating(int map_x, int map_y) const
 
             if (enemy_bomber (i-x, j))
             {
-                num += RATING_ENEMY_BOMBER;
+                num += enemy_attack;
             }
 
             if (curr_map->get_maptile (i-x, j)->get_type() == MapTile::BOX)
@@ -1173,7 +1178,7 @@ int Controller_AI_mass::attack_rating(int map_x, int map_y) const
 
             if (enemy_bomber (i+x, j))
             {
-                num += RATING_ENEMY_BOMBER;
+                num += enemy_attack;
             }
 
             if (curr_map->get_maptile (i+x, j)->get_type() == MapTile::BOX)
@@ -1205,7 +1210,7 @@ int Controller_AI_mass::attack_rating(int map_x, int map_y) const
 
             if (enemy_bomber (i, j-x))
             {
-                num += RATING_ENEMY_BOMBER;
+                num += enemy_attack;
             }
 
             if (curr_map->get_maptile (i, j-x)->get_type() == MapTile::BOX)
@@ -1237,7 +1242,7 @@ int Controller_AI_mass::attack_rating(int map_x, int map_y) const
 
             if (enemy_bomber (i, j+x))
             {
-                num += RATING_ENEMY_BOMBER;
+                num += enemy_attack;
             }
 
             if (curr_map->get_maptile (i, j+x)->get_type() == MapTile::BOX)

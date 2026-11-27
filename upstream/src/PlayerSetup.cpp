@@ -25,6 +25,7 @@
 #include "PlayerSetup.h"
 
 #include "GameConfig.h"
+#include "SkinSelection.h"
 #include "Timer.h"
 #include "Controller.h"
 
@@ -184,6 +185,12 @@ void PlayerSetup::draw(bool fick)
             CB_FillRect(34, 90+i*63, 40, 40, 0x00, 0x00, 0xFF, 50);
         }
 
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+        const int type = Config::bomber[i].get_controller();
+        if ((type == Controller::AI || type == Controller::AI_mass) && Config::random_cpu_skin[i])
+            Resources::Font_small()->render("Random", 55, 100+i*63, cbe::FontAlignment_0center);
+        else
+#endif
         Resources::Bombers(Config::bomber[i].get_skin())->put_screen(35, 130+i*63 - Resources::Bombers(Config::bomber[i].get_skin())->get_height(), 0);
 
         cbe::Font *font = Resources::Font_small();
@@ -253,8 +260,20 @@ void PlayerSetup::handle_enter()
     switch (cur_col)
     {
     case 0:
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+    {
+        const int type = Config::bomber[cur_row].get_controller();
+        const bool cpu = type == Controller::AI || type == Controller::AI_mass;
+        const auto choice = skin_selection::advance(Config::bomber[cur_row].get_skin(),
+                                                    Config::random_cpu_skin[cur_row], cpu, NR_BOMBERSKINS);
+        Config::random_cpu_skin[cur_row] = choice.random;
+        Config::bomber[cur_row].set_skin(choice.skin);
+        break;
+    }
+#else
         Config::bomber[cur_row].set_skin( Config::bomber[cur_row].get_skin()+1 );
         break;
+#endif
     case 1:
         enter_name();
         Resources::Menu_clear()->play();

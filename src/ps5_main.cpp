@@ -21,7 +21,7 @@ extern "C" int sceKernelUsleep(unsigned int);
 
 namespace {
 constexpr char log_root[] = "/mnt/usb0/homebrew/PPSA77028";
-constexpr char diagnostic_build[] = "01.000.026";
+constexpr char diagnostic_build[] = "01.000.032";
 constexpr unsigned slot_count = 6;
 constexpr long log_limit = 16 * 1024;
 char log_path[192]{};
@@ -205,7 +205,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+#if defined(CLANBOMBER_PS5_VULKAN)
+    Config::set_softwareRendering(false);
+    Config::set_renderDriver("ps5vulkan");
+#elif defined(CLANBOMBER_PS5_GPU)
+    Config::set_softwareRendering(false);
+    Config::set_renderDriver("opengles2");
+#else
     Config::set_softwareRendering(true);
+#endif
     app = new ClanBomberApplication();
     int result = 2;
     try {

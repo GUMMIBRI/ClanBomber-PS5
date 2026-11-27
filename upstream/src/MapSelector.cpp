@@ -76,9 +76,20 @@ void MapSelector::exec()
     while (1)
     {
         SDL_Event event;
+#ifdef CLANBOMBER_PS5
+        bool redraw = false;
+#endif
 
         while (SDL_PollEvent(&event))
         {
+#ifdef CLANBOMBER_PS5
+            if (event.type == SDL_KEYDOWN ||
+                (event.type == SDL_WINDOWEVENT &&
+                 (event.window.event == SDL_WINDOWEVENT_EXPOSED ||
+                  event.window.event == SDL_WINDOWEVENT_RESTORED ||
+                  event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)))
+                redraw = true;
+#endif
             if (event.type == SDL_KEYDOWN)
             {
                 switch (event.key.keysym.scancode)
@@ -165,7 +176,14 @@ void MapSelector::exec()
                 }
             }
         }
+#ifdef CLANBOMBER_PS5
+        if (redraw)
+            draw();
+        else
+            SDL_Delay(8);
+#else
         draw();
+#endif
     }
 }
 

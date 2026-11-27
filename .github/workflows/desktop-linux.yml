@@ -1,0 +1,36 @@
+name: Desktop Linux build
+on:
+  workflow_dispatch:
+  push:
+    branches: [desktop-ports-20261127]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev zip
+      - name: Build
+        run: |
+          cmake -S desktop -B build/desktop -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/desktop --parallel 2
+      - name: Stage and smoke test
+        run: |
+          mkdir -p dist/ClanBomber/ClanBomber2 dist/ClanBomber/characters
+          cp build/desktop/ClanBomber dist/ClanBomber/
+          cp -r upstream/src/{fonts,maps,pics,wavs} dist/ClanBomber/ClanBomber2/
+          find dist/ClanBomber/ClanBomber2 -name Makefile.am -delete
+          cp -r characters/. dist/ClanBomber/characters/
+          cp LICENSE upstream/LICENSE.DEJAVU desktop/README-Linux.txt dist/ClanBomber/
+          cd /tmp
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy "$GITHUB_WORKSPACE/dist/ClanBomber/ClanBomber" --self-test
+          cd "$GITHUB_WORKSPACE/dist"
+          zip -qr ClanBomber-Linux-x86_64.zip ClanBomber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClanBomber-Linux-x86_64
+          path: dist/ClanBomber-Linux-x86_64.zip

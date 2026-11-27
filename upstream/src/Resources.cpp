@@ -268,13 +268,28 @@ if (!sur_bombers[nr]) {
         int height;
     } skins[] = {
         {"snake", 60}, {"tux", 60}, {"spider", 40}, {"bsd", 60},
-        {"dull_red", 40}, {"dull_blue", 40}, {"dull_yellow", 40}, {"dull_green", 40}
+        {"dull_red", 40}, {"dull_blue", 40}, {"dull_yellow", 40}, {"dull_green", 40},
+        {"chameleon", 60}, {"gnu", 60}, {"wilber", 60}, {"fedora", 60}, {"mandrake", 60}
     };
     const auto &skin = skins[nr];
 #ifdef CLANBOMBER_PS5
     const std::string relative = "characters/slot-" + std::to_string(nr + 1) + ".png";
     const std::string custom = ps5_app_path(relative.c_str());
     SDL_Surface *sheet = ps5_load_png(custom.c_str(), true);
+    if (sheet && sheet->w == 400 && sheet->h == 4 * skin.height) {
+        auto *imported = new Surface(sheet, 40, skin.height);
+        if (imported->texture) {
+            sur_bombers[nr] = imported;
+            return imported;
+        }
+        delete imported;
+    } else {
+        SDL_FreeSurface(sheet);
+    }
+#endif
+#ifdef CLANBOMBER_DESKTOP
+    const std::string relative = "characters/slot-" + std::to_string(nr + 1) + ".png";
+    SDL_Surface *sheet = IMG_Load(desktop_app_path(relative.c_str()).c_str());
     if (sheet && sheet->w == 400 && sheet->h == 4 * skin.height) {
         auto *imported = new Surface(sheet, 40, skin.height);
         if (imported->texture) {

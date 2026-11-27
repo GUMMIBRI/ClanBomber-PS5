@@ -23,6 +23,7 @@
 
 #ifndef GAMECONFIG_H
 #define GAMECONFIG_H
+#include "CpuDifficulty.h"
 
 #include <string>
 
@@ -160,8 +161,11 @@ public:
     static std::string get_renderDriver();
     static void set_renderDriver(std::string val);
 
-#ifdef CLANBOMBER_PS5
-    static bool easy_cpu;
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+    // Serialized values retain the old Normal=0 and Easy=1 behaviours.
+    // The new gentler Easy uses 2.
+    static int cpu_difficulty;
+    static bool random_cpu_skin[8];
 #endif
     static bool load();
     static bool save(bool init=false);

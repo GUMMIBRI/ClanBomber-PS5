@@ -31,7 +31,7 @@
 #include "AudioBuffer.h"
 #include "Music.h"
 
-#define NR_BOMBERSKINS 8
+#define NR_BOMBERSKINS 13
 
 /**
  *@author Andreas Hundt, Denis Oliver Kropp

@@ -23,7 +23,7 @@
 
 #define PI           3.14159265358979323846
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
 #include <cstdio>
 void ps5_startup_log(const char *, const char *);
 static void log_match_event(const char *event, int slot, int controller, int x, int y) {
@@ -35,6 +35,7 @@ static void log_match_event(const char *event, int slot, int controller, int x, 
 }
 #endif
 #include "ClanBomber.h"
+#include "WalkAnimation.h"
 #include "Resources.h"
 
 #include "Bomber.h"
@@ -79,6 +80,11 @@ Bomber::Bomber( int _x, int _y, COLOR _color, Controller* _controller, std::stri
     case 0 :
     case 1 :
     case 3 :
+    case 8 :
+    case 9 :
+    case 10 :
+    case 11 :
+    case 12 :
         offset_x = 60;
         offset_y = 11;
         break;
@@ -140,12 +146,12 @@ void Bomber::reset()
 
     skateboards = Config::get_start_skateboards();
     speed = 90 + (skateboards*40);
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     easy_cpu_bomb_cooldown = 0;
-    if (Config::easy_cpu && controller &&
+    if (Config::cpu_difficulty > 0 && controller &&
         (controller->get_type() == Controller::AI || controller->get_type() == Controller::AI_mass)) {
-        speed -= 15;
-        easy_cpu_bomb_cooldown = 5.0f;
+        speed -= cpu_difficulty::speed_penalty(Config::cpu_difficulty);
+        easy_cpu_bomb_cooldown = cpu_difficulty::bomb_delay(Config::cpu_difficulty);
     }
 #endif
 
@@ -237,7 +243,7 @@ void Bomber::act()
     {
         return;
     }
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     if (easy_cpu_bomb_cooldown > 0)
         easy_cpu_bomb_cooldown -= Timer::time_elapsed();
 #endif
@@ -288,7 +294,7 @@ void Bomber::act()
     }
     if (moved)
     {
-        anim_count += Timer::time_elapsed()*20*(speed/90);
+        anim_count += Timer::time_elapsed()*20*walk_animation_speed_scale(speed);
         move();
     }
 
@@ -334,17 +340,17 @@ void Bomber::infect_others()
 
 void Bomber::put_bomb()
 {
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     const auto type = controller->get_type();
-    const bool easy_cpu = Config::easy_cpu && (type == Controller::AI || type == Controller::AI_mass);
+    const bool easy_cpu = Config::cpu_difficulty > 0 && (type == Controller::AI || type == Controller::AI_mass);
     if (easy_cpu && easy_cpu_bomb_cooldown > 0) return;
 #endif
     if (cur_bombs && !falling)
     {
         if (app->map->add_bomb( (int)((x+20)/40), (int)((y+20)/40), power, this, (int)x, (int)y ))
         {
-#ifdef CLANBOMBER_PS5
-            if (easy_cpu) easy_cpu_bomb_cooldown = 5.0f;
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+            if (easy_cpu) easy_cpu_bomb_cooldown = cpu_difficulty::bomb_delay(Config::cpu_difficulty);
             log_match_event("bomb placed", number, controller->get_type(), static_cast<int>(x), static_cast<int>(y));
 #endif
             Resources::Game_putbomb()->play();
@@ -358,7 +364,7 @@ void Bomber::put_bomb(int mapx, int mapy)
     {
         if (app->map->add_bomb( mapx, mapy, power, this ))
         {
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
             log_match_event("bomb placed", number, controller->get_type(), static_cast<int>(x), static_cast<int>(y));
 #endif
             Resources::Game_putbomb()->play();
@@ -536,7 +542,7 @@ bool Bomber::die()
         return false;
     }
     dead = true;
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     log_match_event("bomber died", number, controller->get_type(), static_cast<int>(x), static_cast<int>(y));
 #endif
 

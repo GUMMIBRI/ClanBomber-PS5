@@ -41,6 +41,11 @@ Bomber_Corpse::Bomber_Corpse(int _x, int _y, int _color, int _sprite_nr,
 	case 0:
 	case 1:
 	case 3:
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+	case 12:
 		offset_x = 60;
 		offset_y = 11;
 		break;

@@ -1003,7 +1003,11 @@ int Controller_AI::bomber_rating(int x, int y) {
 			if (bomber != b
 					&& (b->get_team() == 0
 							|| b->get_team() != bomber->get_team())) {
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+                rating += cpu_difficulty::enemy_attack_value(Config::cpu_difficulty, DRATING_ENEMY);
+#else
 				rating += DRATING_ENEMY;
+#endif
 			} else if (bomber != b) {
 				rating += DRATING_FRIEND;
 			}

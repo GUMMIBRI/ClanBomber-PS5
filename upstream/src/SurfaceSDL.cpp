@@ -34,6 +34,34 @@ extern SDL_Renderer *renderer;
 
 void ps5_startup_log(const char *, const char *);
 
+// The original indexed sprites use transparent bright green or magenta.
+// Linear filtering also samples the RGB of transparent texels, causing fringes.
+// Give only transparent keyed edge texels the colour of their visible
+// neighbours, keeping their alpha and every visible source pixel unchanged.
+static void repair_transparent_green_edges(SDL_Surface *surface) {
+    auto *base = static_cast<Uint8 *>(surface->pixels);
+    for (int y = 0; y < surface->h; ++y) {
+        for (int x = 0; x < surface->w; ++x) {
+            Uint8 *p = base + y * surface->pitch + 4 * x;
+            const bool green_key = p[0] == 0 && p[1] == 255 && p[2] == 0;
+            const bool magenta_key = p[0] == 255 && p[1] == 0 && p[2] == 255;
+            if (p[3] != 0 || (!green_key && !magenta_key)) continue;
+            unsigned sum[3] = {0, 0, 0}, count = 0;
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    const int nx = x + dx, ny = y + dy;
+                    if (nx < 0 || nx >= surface->w || ny < 0 || ny >= surface->h) continue;
+                    const Uint8 *q = base + ny * surface->pitch + 4 * nx;
+                    if (!q[3]) continue;
+                    for (int c = 0; c < 3; ++c) sum[c] += q[c];
+                    ++count;
+                }
+            }
+            if (count) for (int c = 0; c < 3; ++c) p[c] = static_cast<Uint8>(sum[c] / count);
+        }
+    }
+}
+
 SDL_Surface *ps5_load_png(const char *filename, bool optional) {
     std::unique_ptr<std::FILE, decltype(&std::fclose)> file(std::fopen(filename, "rb"), std::fclose);
     if (!file) {
@@ -73,6 +101,7 @@ SDL_Surface *ps5_load_png(const char *filename, bool optional) {
         SDL_FreeSurface(decoded);
         decoded = nullptr;
     }
+    if (decoded) repair_transparent_green_edges(decoded);
     png_image_free(&image);
     return decoded;
 }

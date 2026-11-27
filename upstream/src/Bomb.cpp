@@ -46,7 +46,7 @@ Bomb::Bomb(int _x, int _y, int _power, Bomber *_bomber,
 	can_fly_over_walls = false;
 	bomber = _bomber;
 	power = _power;
-	sprite_nr = bomber->get_color() * 4;
+	sprite_nr = (bomber->get_color() % 8) * 4;
 	reactivation_frame_counter = -1;
 	bomber->dec_cur_bombs();
 	app->objects.push_back(static_cast<GameObject*>(this));
@@ -127,7 +127,7 @@ void Bomb::act() {
 	} else {
 		move();
 		cur_scale += Timer::time_elapsed() * 10;
-		sprite_nr = bomber->get_color() * 4 + (int) cur_scale % 4;
+		sprite_nr = (bomber->get_color() % 8) * 4 + (int) cur_scale % 4;
 		detonation_countdown -= Timer::time_elapsed();
 		if (detonation_countdown <= 0) {
 			explode();

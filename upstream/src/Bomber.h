@@ -55,6 +55,11 @@ public:
         BLUE2	= 5,
         YELLOW2	= 6,
         GREEN2	= 7,
+        CHAMELEON = 8,
+        GNU = 9,
+        WILBER = 10,
+        FEDORA = 11,
+        MANDRAKE = 12,
     } COLOR;
 
     Bomber( int _x, int _y, COLOR _color, Controller* _controller, std::string _name, int _team, int _number, ClanBomberApplication *_app);
@@ -170,7 +175,7 @@ protected:
     int number;
     Direction server_send_dir;
     SimpleTimer allow_putbomb_timer;
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     float easy_cpu_bomb_cooldown = 0;
 #endif
 };

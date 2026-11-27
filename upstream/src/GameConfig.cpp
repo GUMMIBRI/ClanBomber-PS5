@@ -28,6 +28,7 @@
 
 #include "ClanBomber.h"
 #include "GameConfig.h"
+#include "SkinSelection.h"
 
 #include "Controller.h"
 
@@ -558,8 +559,9 @@ void Config::set_renderDriver(std::string val)
     renderDriver = val;
 }
 
-#ifdef CLANBOMBER_PS5
-bool Config::easy_cpu = false;
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+int Config::cpu_difficulty = 0;
+bool Config::random_cpu_skin[8] = {true, true, true, true, true, true, true, true};
 #endif
 
 bool Config::save(bool init)
@@ -578,12 +580,18 @@ bool Config::save(bool init)
         bomber[5].set_name( "Playing" );
         bomber[6].set_name( "For" );
         bomber[7].set_name( "You" );
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+#ifdef CLANBOMBER_DESKTOP
+        bomber[0].set_name("Player 1");
+        bomber[0].set_controller(Controller::KEYMAP_1);
+#endif
 #ifdef CLANBOMBER_PS5
         if (SDL_NumJoysticks() > 0)
         {
             bomber[0].set_name("Player 1");
             bomber[0].set_controller(Controller::JOYSTICK_1);
         }
+#endif
         bomber[1].set_name("CPU");
         for (int i = 2; i < 8; ++i)
             bomber[i].set_enabled(false);
@@ -640,8 +648,9 @@ bool Config::save(bool init)
         configfile << bomber[i].get_highlight_maptile()	<< std::endl;
     }
 
-#ifdef CLANBOMBER_PS5
-    configfile << static_cast<int>(easy_cpu) << std::endl;
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+    configfile << cpu_difficulty << std::endl;
+    for (bool random_skin : random_cpu_skin) configfile << static_cast<int>(random_skin) << std::endl;
     return configfile.good();
 #else
     return true;
@@ -650,8 +659,9 @@ bool Config::save(bool init)
 
 bool Config::load()
 {
-#ifdef CLANBOMBER_PS5
-    easy_cpu = false;
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
+    cpu_difficulty = 0;
+    for (bool &random_skin : random_cpu_skin) random_skin = true;
 #endif
     std::ifstream configfile(path / filename);
 
@@ -732,10 +742,18 @@ bool Config::load()
         bomber[i].set_highlight_maptile(version != 0);
     }
 
-#ifdef CLANBOMBER_PS5
+#if defined(CLANBOMBER_PS5) || defined(CLANBOMBER_DESKTOP)
     int difficulty = 0;
     if (configfile >> difficulty)
-        easy_cpu = difficulty == 1;
+        cpu_difficulty = cpu_difficulty::normalize(difficulty);
+    // Old configurations have no explicit random flags: retain selections that
+    // differ from the original defaults, and randomize untouched CPU defaults.
+    for (int i = 0; i < 8; ++i) random_cpu_skin[i] = skin_selection::legacy_random(bomber[i].get_skin(), i);
+    for (bool &random_skin : random_cpu_skin) {
+        int value;
+        if (!(configfile >> value)) break;
+        random_skin = value != 0;
+    }
 #endif
     return true;
 }

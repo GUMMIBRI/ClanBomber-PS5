@@ -123,6 +123,10 @@ public:
     ClanBomberApplication();
     ~ClanBomberApplication();
     int main();
+#ifdef CLANBOMBER_DESKTOP
+    int desktop_init_for_self_test() { return init_SDL(); }
+    bool desktop_match_self_test();
+#endif
     Map* map;
     std::list<GameObject*> objects;
     std::vector<Bomber*> bomber_objects;
