@@ -19,7 +19,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          run=$(gh run list --workflow android-build.yml --branch android-port-20261127 --status success --limit 1 --json databaseId,headSha)
+          run=$(gh run list --workflow android-build.yml --branch android-port-20261127 --limit 1 --json databaseId,headSha)
           id=$(echo "$run" | jq -r '.[0].databaseId')
           built=$(echo "$run" | jq -r '.[0].headSha')
           test "$id" != null
@@ -56,6 +56,15 @@ jobs:
           adb shell input tap 75 "$((height - 25))"
           sleep 2
           adb exec-out screencap -p > screenshot-after-dpad.png
+          adb shell input tap 75 "$((height - 143))"
+          sleep 1
+          adb shell input tap "$((width - 50))" "$((height - 75))"
+          sleep 8
+          adb exec-out screencap -p > screenshot-match.png
+          adb shell input swipe 75 "$((height - 143))" 75 "$((height - 143))" 500
+          adb shell input tap "$((width - 50))" "$((height - 75))"
+          sleep 1
+          adb exec-out screencap -p > screenshot-bomb.png
           adb shell pidof org.clanbomber.game
       - uses: actions/upload-artifact@v4
         if: always()
@@ -67,3 +76,5 @@ jobs:
             screenshot.png
             screenshot-after-touch.png
             screenshot-after-dpad.png
+            screenshot-match.png
+            screenshot-bomb.png
