@@ -48,6 +48,15 @@ jobs:
           adb logcat -d > logcat.txt
           adb exec-out screencap -p > screenshot.png
           adb shell pidof org.clanbomber.game
+          read -r width height < <(python3 -c 'import struct; f=open("screenshot.png","rb"); f.seek(16); print(*struct.unpack(">II", f.read(8)))')
+          test "$width" -gt "$height"
+          adb shell input tap "$((width - 50))" "$((height - 75))"
+          sleep 4
+          adb exec-out screencap -p > screenshot-after-touch.png
+          adb shell input tap 75 "$((height - 25))"
+          sleep 2
+          adb exec-out screencap -p > screenshot-after-dpad.png
+          adb shell pidof org.clanbomber.game
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -56,3 +65,5 @@ jobs:
             emulator.log
             logcat.txt
             screenshot.png
+            screenshot-after-touch.png
+            screenshot-after-dpad.png
