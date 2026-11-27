@@ -25,7 +25,7 @@ jobs:
           cp -r upstream/src/{fonts,maps,pics,wavs} dist/ClanBomber/ClanBomber2/
           find dist/ClanBomber/ClanBomber2 -name Makefile.am -delete
           cp -r characters/. dist/ClanBomber/characters/
-          cp LICENSE upstream/LICENSE.DEJAVU desktop/README-Linux.txt dist/ClanBomber/
+          cp LICENSE upstream/LICENSE.DEJAVU ASSET-PROVENANCE.md desktop/DESKTOP-SOURCE-NOTES.md desktop/README-Linux.txt dist/ClanBomber/
           cd /tmp
           SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy "$GITHUB_WORKSPACE/dist/ClanBomber/ClanBomber" --self-test
           cd "$GITHUB_WORKSPACE/dist"
