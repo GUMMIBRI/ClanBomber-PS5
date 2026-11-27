@@ -3,7 +3,8 @@ android {
     namespace 'org.clanbomber.game'
     compileSdk 34
     defaultConfig {
-        applicationId 'org.clanbomber.game'
+        // This independently signed test installs alongside the earlier preview.
+        applicationId 'org.clanbomber.game.touchtest'
         minSdk 23
         targetSdk 34
         versionCode 1
