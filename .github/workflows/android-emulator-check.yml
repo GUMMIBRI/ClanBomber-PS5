@@ -1,0 +1,58 @@
+name: Android emulator check
+on:
+  push:
+    branches: [android-port-20261127]
+    paths: ['.github/workflows/android-emulator-check.yml']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Retrieve matching successful APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run=$(gh run list --workflow android-build.yml --branch android-port-20261127 --status success --limit 1 --json databaseId,headSha)
+          id=$(echo "$run" | jq -r '.[0].databaseId')
+          built=$(echo "$run" | jq -r '.[0].headSha')
+          test "$id" != null
+          git diff --quiet "$built" HEAD -- android/ desktop/ upstream/src/
+          gh run download "$id" --name ClanBomber-Android-debug --dir apk
+      - name: Start emulator and check app startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod a+rw /dev/kvm
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'emulator' 'platform-tools' 'system-images;android-34;google_apis;x86_64'
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n clan-test -k 'system-images;android-34;google_apis;x86_64'
+          "$ANDROID_HOME/emulator/emulator" -avd clan-test -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > emulator.log 2>&1 &
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
+          timeout 240 adb wait-for-device
+          for i in $(seq 1 120); do
+            [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] && break
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+          adb shell input keyevent 82
+          adb install apk/app-debug.apk
+          adb shell am start -n org.clanbomber.game/.ClanBomberActivity
+          sleep 25
+          adb logcat -d > logcat.txt
+          adb exec-out screencap -p > screenshot.png
+          adb shell pidof org.clanbomber.game
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ClanBomber-Android-emulator-evidence
+          path: |
+            emulator.log
+            logcat.txt
+            screenshot.png
