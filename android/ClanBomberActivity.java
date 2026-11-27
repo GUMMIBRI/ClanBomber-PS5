@@ -45,7 +45,7 @@ public class ClanBomberActivity extends SDLActivity {
         int size = (int)(64 * getResources().getDisplayMetrics().density);
         addControl(controls, "▲", KeyEvent.KEYCODE_DPAD_UP, Gravity.LEFT | Gravity.BOTTOM, size, 2*size, size);
         addControl(controls, "◀", KeyEvent.KEYCODE_DPAD_LEFT, Gravity.LEFT | Gravity.BOTTOM, 0, size, size);
-        addControl(controls, "▼", KeyEvent.KEYCODE_DPAD_DOWN, Gravity.LEFT | Gravity.BOTTOM, size, size, size);
+        addControl(controls, "▼", KeyEvent.KEYCODE_DPAD_DOWN, Gravity.LEFT | Gravity.BOTTOM, size, 0, size);
         addControl(controls, "▶", KeyEvent.KEYCODE_DPAD_RIGHT, Gravity.LEFT | Gravity.BOTTOM, 2*size, size, size);
         addControl(controls, "BOMB / OK", KeyEvent.KEYCODE_ENTER, Gravity.RIGHT | Gravity.BOTTOM, size/3, size, size + size/2);
         addControl(controls, "BACK", KeyEvent.KEYCODE_DEL, Gravity.RIGHT | Gravity.TOP, size/4, size/4, size);

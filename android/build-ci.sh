@@ -31,8 +31,10 @@ mkdir -p "$notices"
 cp "$root/LICENSE" "$notices/ClanBomber-GPL.txt"
 cp "$root/upstream/LICENSE.DEJAVU" "$notices/DejaVu.txt"
 cp "$root/ASSET-PROVENANCE.md" "$notices/ASSET-PROVENANCE.md"
+cp "$root/android/SOURCE-NOTES.md" "$notices/ANDROID-SOURCE-NOTES.md"
 cp "$deps/SDL2/LICENSE.txt" "$notices/SDL2.txt"
 cp "$deps/SDL2_image/LICENSE.txt" "$notices/SDL2_image.txt"
+tail -n 45 "$deps/SDL2_image/src/stb_image.h" > "$notices/stb_image.txt"
 cp "$deps/SDL2_mixer/LICENSE.txt" "$notices/SDL2_mixer.txt"
 cp "$deps/SDL2_ttf/LICENSE.txt" "$notices/SDL2_ttf.txt"
 cp "$deps/SDL2_ttf/external/freetype/docs/FTL.TXT" "$notices/FreeType.txt"
@@ -41,3 +43,16 @@ export CLAN_SOURCE_ROOT="$root" CLAN_DEPS_ROOT="$deps"
 cd "$project"
 chmod +x gradlew
 ./gradlew --no-daemon --stacktrace assembleDebug
+apk="$project/app/build/outputs/apk/debug/app-debug.apk"
+unzip -Z1 "$apk" > "$project/apk-files.txt"
+for file in lib/arm64-v8a/libmain.so lib/arm64-v8a/libc++_shared.so lib/arm64-v8a/libSDL2.so \
+    lib/arm64-v8a/libSDL2_image.so lib/arm64-v8a/libSDL2_mixer.so \
+    lib/arm64-v8a/libSDL2_ttf.so assets/ClanBomber2/wavs/putbomb.wav \
+    assets/ClanBomber2/wavs/bud.mod assets/ClanBomber2/maps/Ghostbear.map \
+    assets/licenses/ClanBomber-GPL.txt; do
+    grep -Fx "$file" "$project/apk-files.txt" >/dev/null
+done
+for skin in snake tux spider bsd dull_red dull_blue dull_yellow dull_green chameleon gnu wilber fedora mandrake; do
+    grep -Fx "assets/ClanBomber2/pics/bomber_$skin.png" "$project/apk-files.txt" >/dev/null
+done
+grep -Fx lib/x86_64/libmain.so "$project/apk-files.txt" >/dev/null
